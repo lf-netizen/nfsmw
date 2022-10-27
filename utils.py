@@ -3,6 +3,9 @@ import cv2
 from scipy.signal import find_peaks
 from grabscreen import grab_screen
 from fastai.vision.all import *
+import datetime
+from window_capture import WindowCapture
+import keyboard as kb
 
 
 IMG_SIZE_X = int(960 / 2)
@@ -370,7 +373,55 @@ def get_learner(model_name):
     learn.load(model_name)
     return learn
 
+TRACKED_KEYS = ['up', 'down', 'left', 'right']
+def save_screen(dir, screen, speed, angle):
+    if angle is None:
+        angle = 'None'
+    else:
+        angle = f'{angle:.3f}'
 
+    if speed > 1000:
+        return
+
+    kb_input = ''
+    for key in TRACKED_KEYS:
+        kb_input += str(int(kb.is_pressed(key)))
+
+    if kb_input not in ['1000', '1010', '1001', '0010', '0001', '0100', '0110', '0101']:
+        return
+
+    now = datetime.datetime.now()
+    time = now.strftime("%Y-%m-%d-%H-%M-%S-%f")[:-3]
+
+    cv2.imwrite(dir + f'/{time}_{speed}_{angle}_{kb_input}_.png', screen)
+
+def turn_left():
+    kb.press('a')
+    kb.release('d')
+def turn_right():
+    kb.release('a')
+    kb.press('d')
+def go_straight():
+    kb.release('a')
+    kb.release('d')
+
+def speed_up():
+    kb.press('w')
+    kb.release('s')
+def slow_down():
+    kb.release('w')
+    kb.press('s')
+def neutral():
+    kb.release('w')
+    kb.release('s')
+
+def no_key():
+    kb.release('w')
+    kb.release('s')
+    kb.release('a')
+    kb.release('d')
+    
+#######################################################
 def get_learner_(model_name):
     # dataloaders
     dummy_x = np.empty(shape=(1, IMG_SIZE_Y, IMG_SIZE_X, 3), dtype=np.uint8)
