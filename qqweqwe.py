@@ -18,7 +18,7 @@ pathlib.PosixPath = pathlib.WindowsPath
 
 
 
-def driving_loop(global_run: thr.Event, scr_ready: thr.Condition, q_pred: Queue, autopilot:thr.Event):
+def driving_loop(global_run: thr.Event, q_pred: Queue, autopilot: thr.Event):
     desired_diff = 0
     accelerate = 1
     old_angle = 0
@@ -27,17 +27,15 @@ def driving_loop(global_run: thr.Event, scr_ready: thr.Condition, q_pred: Queue,
         global_run.wait()
         autopilot.wait()
         if global_terminate:
-            no_key()
             break
 
         # get diff if there is any
         if not q_pred.empty():
             pred = q_pred.get()
             accelerate, desired_diff, _, pred_ad = pred
-
-        with scr_ready:
-            scr_ready.wait()
-        _, speed, angle = screen_data
+        
+        capture_screen()
+        _, speed, angle, _ = screen_data
 
         # calc angle diff
         if angle is None:
@@ -74,14 +72,14 @@ def driving_loop(global_run: thr.Event, scr_ready: thr.Condition, q_pred: Queue,
                 slow_down()
 
 
-def predict(global_run: thr.Event, q_pred:Queue, autopilot:thr.Event, learn:Learner):
+def predict(global_run: thr.Event, q_pred:Queue, autopilot: thr.Event, learn:Learner):
     while True:
         global_run.wait()
         autopilot.wait()
         if global_terminate:
             break
         
-        img, speed, _ = screen_data
+        img, speed, _, _ = screen_data
         img = preprocess_img(img)
         img = np.moveaxis(img, -1, 0)
         t_start = time.perf_counter()
@@ -106,114 +104,85 @@ def predict(global_run: thr.Event, q_pred:Queue, autopilot:thr.Event, learn:Lear
         print(f"Time: {(t_stop - t_start)*1000:.4f}\n\nAcc: {accelerate:.5f} \nDiff: {raw_diff:.5f} \nKb: {'{:.3f} | {:.3f} | {:.3f}'.format(*pred[7:][::-1])}\n=============================")
 
 
-def capture_screen(global_run: thr.Event, scr_ready: thr.Condition, wincap: WindowCapture):
+def capture_screen():
     global screen_data
-    while True:
-        global_run.wait()
-        if global_terminate:
-            with scr_ready:
-                time.sleep(0.2)
-                scr_ready.notify_all()
-            break
-
-        try:
-            img = wincap.get_screenshot()
-        except:
-            print('compatible dlc etc')
-            continue
-        img_gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        angle = read_angle(img_gray)
-        speed = read_speed(img_gray)
+    try:
+        img = wincap.get_screenshot()
+    except:
+        print('compatible dlc etc')
+        return
         
-        if speed is None or speed > 1000:
-            terminate()
-            
-        screen_data = (img, speed, angle)
-        with scr_ready:
-            scr_ready.notify_all()
+    img_gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    angle = read_angle(img_gray)
+    speed = read_speed(img_gray)
+    
+    if speed is None or speed > 1000:
+        return
+        
+    now = datetime.datetime.now()
+    time = now.strftime("%Y-%m-%d-%H-%M-%S-%f")[:-3]
+    screen_data = (img, speed, angle, time)
 
 
-def save_screen(global_run: thr.Event, scr_ready: thr.Condition, saving: thr.Event, dir: str):
-    while True:        
-        global_run.wait()
-        saving.wait()
-        if global_terminate:
-            break
+def save_screen(kb_input):
+    img, speed, angle, time = screen_data
 
-        with scr_ready:
-            scr_ready.wait()
-        img, speed, angle = screen_data
+    if angle is None:
+        angle = 'None'
+    else:
+        angle = f'{angle:.3f}'
+    if speed > 1000:
+        return
 
-        if angle is None:
-            angle = 'None'
-        else:
-            angle = f'{angle:.3f}'
-        if speed > 1000:
-            continue
+    for is_pressed in kb_input:
+        kb_input += str(int(is_pressed))
+    if kb_input not in ['1000', '1010', '1001', '0010', '0001', '0100', '0110', '0101']:
+        return
 
-        for is_pressed in kb_input:
-            kb_input += str(int(is_pressed))
-        if kb_input not in ['1000', '1010', '1001', '0010', '0001', '0100', '0110', '0101']:
-            continue
+    cv2.imwrite(dir + f'/{time}_{speed}_{angle}_{kb_input}_.png', img)
 
-        now = datetime.datetime.now()
-        time = now.strftime("%Y-%m-%d-%H-%M-%S-%f")[:-3]
-
-        cv2.imwrite(dir + f'/{time}_{speed}_{angle}_{kb_input}_.png', img)
-
-
-def terminate():
-    global global_terminate
-    global global_run
-    global autopilot
-    global saving
-    global_terminate = True
-    global_run.clear()
-    autopilot.clear()
-    saving.clear()
-    no_key()
-    print('Terminated')
-
-screen_data = None
-kb_input = [False] * 4
+wincap = WindowCapture('Need for Speed™ Most Wanted')
 global_terminate = False
-global_run = thr.Event()
-autopilot = thr.Event()
-saving = thr.Event()
-
+screen_data = None
 THRESHOLD = 1.0
-TRACKED_KEYS = ['up', 'down', 'left', 'right']
-def main():
-    global kb_input
-    global global_run
-    global autopilot
-    global saving
 
-    wincap = WindowCapture('Need for Speed™ Most Wanted')
+def main():
+    TRACKED_KEYS = ['up', 'down', 'left', 'right']
+    def terminate():
+        global global_terminate
+        nonlocal global_run
+        nonlocal autopilot
+        global_terminate = True
+        global_run.clear()
+        autopilot.clear()
+        no_key()
+        print('Terminated')
+        
+    kb_input = [False] * 4
+    global_run = thr.Event()
+    autopilot = thr.Event()
+
     dir = 'images/tests/test_driving_corrections'
     q_pred = Queue()
-
-    scr_ready = thr.Condition()
     
     # learn = get_learner_('tiny384_70k_allinp_unfrozen')
     # learn = get_learner_('tiny384_70k_allinp_v1')
     learn = get_learner('models/tiny384_70k_allinp_v3')
     # learn = get_learner('models/tiny384_70k_allinp02off_v1')
 
-    t1 = thr.Thread(target=driving_loop, args=(global_run, scr_ready, q_pred, autopilot))
+    t1 = thr.Thread(target=driving_loop, args=(global_run, q_pred, autopilot))
     t2 = thr.Thread(target=predict, args=(global_run, q_pred, autopilot, learn))
-    t3 = thr.Thread(target=capture_screen, args=(global_run, scr_ready, wincap))
-    t4 = thr.Thread(target=save_screen, args=(global_run, scr_ready, saving, dir))
 
     t1.start()
-    # t2.start()
-    t3.start()
-    # t4.start()
+    t2.start()
     global_run.set()
 
+    speed_up()
     for i in range(2, 0, -1):
         print(i)
         
+    capture_screen()
+    autopilot.set()
     while True:
         if kb.is_pressed('/'):
             terminate()
