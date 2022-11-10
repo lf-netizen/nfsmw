@@ -41,12 +41,16 @@ def no_key():
     kb.release('a')
     kb.release('d')
 
+SAVE_DIR = 'H:/machine learning/NFSMW_v1/images/720_RGB_kb_appendix/39'
+
+screenshot = None
+
 def driving_loop(q_pred, wincap, make_preds):
     desired_diff = 0
     accelerate = 1
     old_angle = 0
+    driving_loop_ctr = 0
 
-    make_preds.set()
     while True:
         if kb.is_pressed('/'):
             no_key()
@@ -55,6 +59,8 @@ def driving_loop(q_pred, wincap, make_preds):
         # read current angle
         try:
             screen = wincap.get_screenshot()
+            global screenshot
+            screenshot = screen
         except:
             print('compatible dlc etc')
             continue
@@ -73,6 +79,7 @@ def driving_loop(q_pred, wincap, make_preds):
                 kb_input += str(int(kb.is_pressed(key)))
             print(kb_input, time.perf_counter())
             no_key()
+            save_screen(SAVE_DIR, screen, speed, angle, kb_input)
             continue
         else:
             make_preds.set()
@@ -84,6 +91,8 @@ def driving_loop(q_pred, wincap, make_preds):
                 no_key()
                 break
             accelerate, desired_diff, _, pred_ad = pred
+            print(f'Driving loop counter: {driving_loop_ctr}')
+            driving_loop_ctr = 0
             # desired_angle = (angle + desired_diff) % 30
 
         # calc angle diff
@@ -96,6 +105,7 @@ def driving_loop(q_pred, wincap, make_preds):
         if np.sign(desired_diff)*np.sign(angle_diff) > 0:
             desired_diff -= angle_diff
             if np.sign(desired_diff)*np.sign(angle_diff) < 0:
+                print(f'\nreached after {driving_loop_ctr} ==============================================')
                 desired_diff = 0
             if np.sign(desired_diff)*pred_ad < 0:
                 print('\nchange')
@@ -110,7 +120,7 @@ def driving_loop(q_pred, wincap, make_preds):
             turn_right()
 
         if accelerate > 0:
-            if speed > 120:
+            if speed > 1700:
                 neutral()
             else:
                 speed_up()
@@ -119,6 +129,9 @@ def driving_loop(q_pred, wincap, make_preds):
             #     neutral()
             # else:
                 slow_down()
+
+        driving_loop_ctr += 1
+        time.sleep(0.02)
 
 
         
@@ -160,47 +173,44 @@ def driving_loop_simple(q_pred, wincap):
             no_key()
             break
 
-THRESHOLD = 1
-def predict(learn, q_pred, wincap, make_preds):
+THRESHOLD = 1.0
+def predict(learn, q_pred, make_preds):
     for i in range(2, 0, -1):
         print(i)
 
     while True:
         make_preds.wait()
+        t_start = time.perf_counter()
         if kb.is_pressed('/'):
             break
-        # if capture_image:
-        #     continue
 
-        t_start = time.perf_counter()
-        try:
-            screen = wincap.get_screenshot()
-        except:
-            print('compatible dlc etc')
-            continue
-        img = preprocess_img(screen)
+        img = preprocess_img(screenshot)
         img = np.moveaxis(img, -1, 0)
-        speed = read_speed(cv2.cvtColor(screen, cv2.COLOR_RGB2GRAY))
+        speed = read_speed(cv2.cvtColor(screenshot, cv2.COLOR_RGB2GRAY))
 
-        t_start = time.perf_counter()
         pred = learn.predict((img, torch.tensor(speed/100)))[0]
-        t_stop = time.perf_counter()
 
-        accelerate = pred[0] + 0.8
-        raw_diff = pred[1] * 10
-        pred_ws = np.argmax(pred[3:6])-1
-        pred_ad = np.argmax(pred[7:])-1
+        accelerate = pred[0] + 0.7
+        raw_diff = pred[1] * 5
+        pred_ws = np.argmax(pred[3:6] ) - 1
+        pred_ad = np.argmax(pred[7:]) - 1
         
         # REGRESSION
-        if np.abs(raw_diff) < THRESHOLD:
-            raw_diff = 0
+        # if np.abs(raw_diff) < THRESHOLD:
+        #     raw_diff = 0
         # angle_diff = np.ceil(raw_diff)
         # angle_diff = np.round(raw_diff)
         # angle_diff = np.sign(raw_diff)
-        angle_diff = raw_diff
-        # angle_diff = min(raw_diff**2, 8) * np.sign(raw_diff)
-        
+        # angle_diff = raw_diff
+        # angle_diff = min(np.abs(raw_diff), 5) * np.sign(raw_diff)
+        # angle_diff = np.abs(raw_diff) * pred_ad
+        angle_diff = raw_diff if not (pred[7] < 0 and pred[9] < 0 and pred[8] > 1) else 0
+        if pred[7] < 0 and pred[9] < 0 and pred[8] > 1:
+            print('force straight++++++++++++++++++++++++++++++++++++++++++++')
+        if accelerate < 0:
+            angle_diff = 0
         q_pred.put((accelerate, angle_diff, pred_ws, pred_ad))
+        t_stop = time.perf_counter()
         print(f"Time: {(t_stop - t_start)*1000:.4f}\n\nAcc: {accelerate:.5f} \nDiff: {raw_diff:.5f} \nKb: {'{:.3f} | {:.3f} | {:.3f}'.format(*pred[7:][::-1])}\n=============================")
 
 
@@ -232,15 +242,14 @@ def main():
     make_preds = Event()
     # learn = get_learner_('tiny384_70k_allinp_unfrozen')
     # learn = get_learner_('tiny384_70k_allinp_v1')
-    learn = get_learner('models/tiny384_70k_allinp_v3')
-    # learn = get_learner('models/tiny384_70k_allinp02off_v1')
-
+    # learn = get_learner('models/tiny384_70k_allinp_v3')
+    learn = get_learner('models/tiny384_160k_2')
     t1 = Thread(target=driving_loop, args=(q_pred, wincap, make_preds))
-    t2 = Thread(target=predict, args=(learn, q_pred, wincap, make_preds))
-
+    t2 = Thread(target=predict, args=(learn, q_pred, make_preds))
+      
     t1.start()
     t2.start()
-
+    
 
 if __name__ == '__main__':
     main()

@@ -14,7 +14,11 @@ def preprocess(SRC_PATH, TRACK_IDS, DST_PATH, with_kb_input=False):
             img = cv2.imread(os.path.join(SRC_PATH, str(track_id), img_name))#, cv2.IMREAD_GRAYSCALE)
             # img_gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
             
-            img = preprocess_img(img)
+            try:
+                img = preprocess_img(img)
+            except:
+                print(track_id, img_name)
+                continue
             # time = img_name[:23]
             # speed = read_speed(img_gray)
             # angle = read_angle(img_gray)
@@ -36,11 +40,12 @@ def angle_diff_appendix(SRC_PATH, TRACK_IDS, DST_PATH):
     pickle_out.close()
     
 if __name__ == '__main__':
-    SRC_PATH = 'H:/machine learning/NFSMW_v1/images/720p_RGB/qqq'
+    SRC_PATH = 'H:/machine learning/NFSMW_v1/images/720p_RGB_handmade_tr'
     # TRACK_IDS = [i for i in range(18 , 34)]; TRACK_IDS.remove(26)
-    TRACK_IDS = os.listdir(SRC_PATH)
-    DST_PATH = 'H:/machine learning/NFSMW_v1/images_uploadable/720p_RGB'
-    preprocess(SRC_PATH, TRACK_IDS, DST_PATH, with_kb_input=False)
+    TRACK_IDS = [f'tr_{i}' for i in range(16, 23)]
+    # TRACK_IDS = os.listdir(SRC_PATH)
+    DST_PATH = 'H:/machine learning/NFSMW_v1/images_uploadable/720p_RGB_handmade_tr'
+    preprocess(SRC_PATH, TRACK_IDS, DST_PATH, with_kb_input=True)
     
 
     # SRC_PATH = 'H:/machine learning/NFSMW_v1/images/handmade_480pRGB'

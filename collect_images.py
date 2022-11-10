@@ -11,7 +11,7 @@ from utils import read_angle, read_speed, IMG_SIZE_X, IMG_SIZE_Y, preprocess_img
 from window_capture import WindowCapture
 
 # DIR = 'images/handmade_480pRGB/480pRGB/29'
-DIR = 'images/720p_RGB/tr_2'
+DIR = 'images/720p_RGB_handmade_tr/tr_22'
 if not os.path.exists(DIR):
     os.mkdir(DIR)
 
@@ -164,11 +164,12 @@ def main_consistent():
             continue
 
         capture_screen(with_kb_input=True)
+        time.sleep(0.03)
     
 
 
 if __name__ == '__main__':
-    main_bot()
+    # main_bot()
     # main()
-    # main_consistent()
+    main_consistent()
     cv2.destroyAllWindows()

@@ -248,15 +248,15 @@ def old_way_of_loading_models():
         def get_x(i):
             return images[i]
 
-    def get_y(i):
-        # FOR MINIMAP ROTATION REGRESSION
-        return labels[i]
-        
-        # FOR MINIMAP ROTATION CLASSIFICATION
-        # return 0 if np.abs(labels[i]) <= 1 else np.sign(labels[i])
-        
-        # FOR KB INPUT CLASSIFICATION 
-        # return CONVERT_INPUT.index(labels[i][2:])
+        def get_y(i):
+            # FOR MINIMAP ROTATION REGRESSION
+            return labels[i]
+            
+            # FOR MINIMAP ROTATION CLASSIFICATION
+            # return 0 if np.abs(labels[i]) <= 1 else np.sign(labels[i])
+            
+            # FOR KB INPUT CLASSIFICATION 
+            # return CONVERT_INPUT.index(labels[i][2:])
 
         dblock = DataBlock(
             blocks=(ImageBlock, RegressionBlock),
@@ -269,6 +269,7 @@ def old_way_of_loading_models():
             # splitter=EndSplitter(valid_pct=0.1)
             )
         dls = dblock.dataloaders(list(range(num_images)), shuffle=True, bs=64)
+        return dls
 
     dummy_x = np.empty(shape=(1, IMG_SIZE_Y, IMG_SIZE_X, 3), dtype=np.uint8)
     dummy_y = np.empty(shape=(1, ))
@@ -374,7 +375,7 @@ def get_learner(model_name):
     return learn
 
 TRACKED_KEYS = ['up', 'down', 'left', 'right']
-def save_screen(dir, screen, speed, angle):
+def save_screen(dir, screen, speed, angle, kb_input):
     if angle is None:
         angle = 'None'
     else:
@@ -382,10 +383,6 @@ def save_screen(dir, screen, speed, angle):
 
     if speed > 1000:
         return
-
-    kb_input = ''
-    for key in TRACKED_KEYS:
-        kb_input += str(int(kb.is_pressed(key)))
 
     if kb_input not in ['1000', '1010', '1001', '0010', '0001', '0100', '0110', '0101']:
         return
