@@ -104,6 +104,7 @@ def predict(learn, q_pred, wincap):
             print('compatible dlc etc')
             continue
         img = preprocess_img(screen)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = np.moveaxis(img, -1, 0)
         speed = read_speed(cv2.cvtColor(screen, cv2.COLOR_RGB2GRAY))
 

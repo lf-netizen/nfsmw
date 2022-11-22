@@ -312,29 +312,49 @@ def get_learner(model_name):
     dls = dblock.dataloaders(list(range(1)), shuffle=True, bs=64)
 
     # model class
-    class ConvnextWithSpeed(nn.Module):
-        def __init__(self): 
-            super().__init__()
-            model = create_timm_model('convnext_tiny_384_in22ft1k', n_out=10)[0]
-            head_layers = list(model[-1].children())
-            head_layers[4] = torch.nn.Linear(in_features=1537, out_features=512, bias=False)
-            self.img_body = nn.Sequential(model[:-1], nn.Sequential(*head_layers[:4]))
-            nf = num_features_model(self.img_body)
-            self.head = create_head(nf+1, 10, pool=False, concat_pool=False)
-            
+    if '2head' in model_name:
+        class ConvnextWithSpeed(nn.Module):
+            def __init__(self): 
+                super().__init__()
+                model = create_timm_model('convnext_tiny_384_in22ft1k', n_out=10)[0]
+                head_layers = list(model[-1].children())
+                head_layers[4] = torch.nn.Linear(in_features=1537, out_features=512, bias=False)
+                self.img_body = nn.Sequential(model[:-1], nn.Sequential(*head_layers[:4]))
+                nf = num_features_model(self.img_body)
+                self.head_angle = create_head(nf+1, 2, pool=False, concat_pool=False)
+                self.head_kb = create_head(nf+1, 8, pool=False, concat_pool=False)
+                
+            def forward(self, x):
+                img, speed = x
+                x_img = self.img_body(img/255)
+                x = torch.cat([x_img, speed[:, None]], dim=1)
+                x_angle = self.head_angle(x)
+                x_kb = self.head_kb(x)
+                return torch.cat([x_angle, x_kb], dim=1)
+    else:
+        class ConvnextWithSpeed(nn.Module):
+            def __init__(self): 
+                super().__init__()
+                model = create_timm_model('convnext_tiny_384_in22ft1k', n_out=10)[0]
+                head_layers = list(model[-1].children())
+                head_layers[4] = torch.nn.Linear(in_features=1537, out_features=512, bias=False)
+                self.img_body = nn.Sequential(model[:-1], nn.Sequential(*head_layers[:4]))
+                nf = num_features_model(self.img_body)
+                self.head = create_head(nf+1, 10, pool=False, concat_pool=False)
+                
 
-        # def forward(self, *x):
-        #     img, speed = x
-        #     x_img = self.img_body(img)
-        #     x = torch.cat([x_img, speed[:, None]], dim=1)
-        #     return self.head(x)
+            # def forward(self, *x):
+            #     img, speed = x
+            #     x_img = self.img_body(img)
+            #     x = torch.cat([x_img, speed[:, None]], dim=1)
+            #     return self.head(x)
 
-        def forward(self, x):
-            img, speed = x
-            x_img = self.img_body(img/255)
-            x = torch.cat([x_img, speed[:, None]], dim=1)
-            return self.head(x)
-        
+            def forward(self, x):
+                img, speed = x
+                x_img = self.img_body(img/255)
+                x = torch.cat([x_img, speed[:, None]], dim=1)
+                return self.head(x)
+                
     def freeze(self):
         self.model.img_body[0].requires_grad_(False)
         for module in self.model.img_body[0].modules():
