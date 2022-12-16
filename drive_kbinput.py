@@ -76,9 +76,9 @@ def driving_loop(q_pred, wincap):
             turn_right()
 
         if pred_ws > 0:
-            if speed > 120:
-                neutral()
-            else:
+            # if speed > 120:
+            #     neutral()
+            # else:
                 speed_up()
         else:
             # if speed < 50:
@@ -155,7 +155,10 @@ def main():
     # learn = get_learner_('tiny384_70k_allinp_unfrozen')
     # learn = get_learner_('tiny384_70k_allinp_v1')
     # learn = get_learner('models/tiny384_70k_allinp_v3')
-    learn = get_learner('models/tiny384_160k_2')
+    # learn = get_learner('models/tiny384_160k_2')
+
+    learn = get_learner('models/tiny384_2heads_newdiv_4')
+
 
     t1 = Thread(target=driving_loop, args=(q_pred, wincap))
     t2 = Thread(target=predict, args=(learn, q_pred, wincap))

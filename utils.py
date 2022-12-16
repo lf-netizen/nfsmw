@@ -311,12 +311,13 @@ def get_learner(model_name):
         )
     dls = dblock.dataloaders(list(range(1)), shuffle=True, bs=64)
 
+    base_model = 'convnext_small_384_in22ft1k' if 'small' in model_name else 'convnext_tiny_384_in22ft1k'
     # model class
     if '2head' in model_name:
         class ConvnextWithSpeed(nn.Module):
             def __init__(self): 
                 super().__init__()
-                model = create_timm_model('convnext_tiny_384_in22ft1k', n_out=10)[0]
+                model = create_timm_model(base_model, n_out=10)[0]
                 head_layers = list(model[-1].children())
                 head_layers[4] = torch.nn.Linear(in_features=1537, out_features=512, bias=False)
                 self.img_body = nn.Sequential(model[:-1], nn.Sequential(*head_layers[:4]))
@@ -335,7 +336,7 @@ def get_learner(model_name):
         class ConvnextWithSpeed(nn.Module):
             def __init__(self): 
                 super().__init__()
-                model = create_timm_model('convnext_tiny_384_in22ft1k', n_out=10)[0]
+                model = create_timm_model(base_model, n_out=10)[0]
                 head_layers = list(model[-1].children())
                 head_layers[4] = torch.nn.Linear(in_features=1537, out_features=512, bias=False)
                 self.img_body = nn.Sequential(model[:-1], nn.Sequential(*head_layers[:4]))

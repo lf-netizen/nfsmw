@@ -54,8 +54,9 @@ def driving_loop(q_pred, wincap, make_preds):
     qlen = 4
     I = deque(maxlen=qlen)
     for _ in range(4): I.append(0)
-
-    while True:
+    # steering = 0
+# 
+    # while True:
         if kb.is_pressed('/'):
             no_key()
             break
@@ -98,11 +99,8 @@ def driving_loop(q_pred, wincap, make_preds):
                 no_key()
                 break
             accelerate, pred_diff, _, pred_ad = pred
-            desired_diff = 0.5 * pred_diff \
-                         + 0.0 * sum(I) / qlen \
-                         + 0.0 * (pred_diff - I[-1])
+            desired_diff = 0.5 * pred_diff
             
-            I.append(pred_diff)
             if np.sign(temp_dd) * np.sign(desired_diff) > 0:
                 desired_diff += temp_dd
             temp_dd = 0
@@ -120,33 +118,42 @@ def driving_loop(q_pred, wincap, make_preds):
         #     print('change direction +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+')
 
         
-        # check if desired diff is reached
         if np.sign(desired_diff) * np.sign(angle_diff) > 0:
             desired_diff -= angle_diff
-            if np.sign(desired_diff) * np.sign(angle_diff) < 0:
-                print(f'\nreached after {driving_loop_ctr} ++++++++++++++++++++++++++++++')
-                print(f'overshot: {desired_diff - angle_diff}')
+        # steering = 1.0 * desired_diff \
+                + 0.0 * sum(I) / qlen \
+                + 0.0 * (angle_diff - I[-1])
+        # I.append(angle_diff)
+
+        # check if desired diff is reached
+        # if np.sign(desired_diff) * np.sign(angle_diff) > 0:
+        #     desired_diff -= angle_diff
+            # if np.sign(desired_diff) * np.sign(angle_diff) < 0:
+            #     print(f'\nreached after {driving_loop_ctr} ++++++++++++++++++++++++++++++')
+            #     print(f'overshot: {desired_diff - angle_diff}')
                 # desired_diff = 0 
             # if np.sign(desired_diff) * pred_ad < 0:
             #     print('\nchange')
             #     desired_diff = 0
-
-        # kb inputs
-        if desired_diff == 0:
-            go_straight()
-        elif desired_diff > 0:
-            turn_left()
-        elif desired_diff < 0:
-            turn_right()
-
+        steering = desired_diff
+        # 
+        kb inputs
+        # if steering == 0:
+            # go_straight()
+        elif steering > 0:
+            # turn_left()
+        elif steering < 0:
+            # turn_right()
+# 
         if accelerate > 0:
-            if speed > 1700:
-                neutral()
-            else:
+            # if speed > 150:
+            #     neutral()
+            # else:
                 speed_up()
         else:
             # if speed < 50:
-            #     neutral()
+            # if steering != 0:
+                # neutral()
             # else:
                 slow_down()
 
@@ -171,13 +178,13 @@ def predict(learn, q_pred, make_preds):
 
         pred = learn.predict((img, torch.tensor(speed/100)))[0]
 
-        accelerate = pred[0] + 0.8
+        accelerate = pred[0]+ 0.8
         raw_diff = pred[1] * 10
         pred_ws = np.argmax(pred[3:6] ) - 1
         pred_ad = np.argmax(pred[7:]) - 1
         
         # REGRESSION
-        # if np.abs(raw_diff) < THRESHOLD:
+        # if np.abs(raw_diff) < THRESHOLD:  
         #     print('threshold ====================================')
         #     raw_diff = 0
         # angle_diff = np.ceil(raw_diff)
@@ -227,7 +234,10 @@ def main():
     # learn = get_learner('models/tiny384_70k_allinp_v3')
     # learn = get_learner('models/tiny384_160k_2')
     # learn = get_learner('models/tiny384_160k_02off_v1')
-    learn = get_learner('models/tiny384_2heads_160k_03off_10')
+    # learn = get_learner('models/tiny384_2heads_160k_03off_10')
+    # learn = get_learner('models/tiny384_2heads_aug_6')
+    learn = get_learner('models/tiny384_2heads_newdiv_4')
+    # learn = get_learner('models/small_2head_8')
     
     t1 = Thread(target=driving_loop, args=(q_pred, wincap, make_preds))
     t2 = Thread(target=predict, args=(learn, q_pred, make_preds))

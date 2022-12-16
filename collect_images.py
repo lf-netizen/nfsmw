@@ -11,7 +11,7 @@ from utils import read_angle, read_speed, IMG_SIZE_X, IMG_SIZE_Y, preprocess_img
 from window_capture import WindowCapture
 
 # DIR = 'images/handmade_480pRGB/480pRGB/29'
-DIR = 'images/720p_RGB_handmade_tr/tr_22'
+DIR = 'images/720p_RGB_newdiv/zip_buffer/LR_spr_45_kb'
 if not os.path.exists(DIR):
     os.mkdir(DIR)
 
@@ -159,6 +159,7 @@ def main_consistent():
             paused = True
         if kb.is_pressed('o'):
             paused = False
+            print('      ', end='\r')
         if paused:
             print('Paused', end='\r')
             continue

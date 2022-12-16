@@ -40,11 +40,11 @@ def angle_diff_appendix(SRC_PATH, TRACK_IDS, DST_PATH):
     pickle_out.close()
     
 if __name__ == '__main__':
-    SRC_PATH = 'H:/machine learning/NFSMW_v1/images/720p_RGB_handmade_tr'
+    SRC_PATH = 'H:/machine learning/NFSMW_v1/images/720p_RGB_newdiv/zip_buffer'
     # TRACK_IDS = [i for i in range(18 , 34)]; TRACK_IDS.remove(26)
-    TRACK_IDS = [f'tr_{i}' for i in range(16, 23)]
-    # TRACK_IDS = os.listdir(SRC_PATH)
-    DST_PATH = 'H:/machine learning/NFSMW_v1/images_uploadable/720p_RGB_handmade_tr'
+    # TRACK_IDS = [f'tr_{i}' for i in range(16, 23)]
+    TRACK_IDS = os.listdir(SRC_PATH)
+    DST_PATH = 'H:/machine learning/NFSMW_v1/images_uploadable/720p_RGB_newdiv/zip_buffer'
     preprocess(SRC_PATH, TRACK_IDS, DST_PATH, with_kb_input=True)
     
 
