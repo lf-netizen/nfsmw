@@ -54,9 +54,9 @@ def driving_loop(q_pred, wincap, make_preds):
     qlen = 4
     I = deque(maxlen=qlen)
     for _ in range(4): I.append(0)
-    # steering = 0
-# 
-    # while True:
+    steering = 0
+
+    while True:
         if kb.is_pressed('/'):
             no_key()
             break
@@ -120,9 +120,9 @@ def driving_loop(q_pred, wincap, make_preds):
         
         if np.sign(desired_diff) * np.sign(angle_diff) > 0:
             desired_diff -= angle_diff
-        # steering = 1.0 * desired_diff \
-                + 0.0 * sum(I) / qlen \
-                + 0.0 * (angle_diff - I[-1])
+        steering = 1.0 * desired_diff \
+                # + 0.0 * sum(I) / qlen \
+                # + 0.0 * (angle_diff - I[-1])
         # I.append(angle_diff)
 
         # check if desired diff is reached
@@ -136,14 +136,13 @@ def driving_loop(q_pred, wincap, make_preds):
             #     print('\nchange')
             #     desired_diff = 0
         steering = desired_diff
-        # 
-        kb inputs
-        # if steering == 0:
-            # go_straight()
+        # kb inputs
+        if steering == 0:
+            go_straight()
         elif steering > 0:
-            # turn_left()
+            turn_left()
         elif steering < 0:
-            # turn_right()
+            turn_right()
 # 
         if accelerate > 0:
             # if speed > 150:
@@ -236,8 +235,9 @@ def main():
     # learn = get_learner('models/tiny384_160k_02off_v1')
     # learn = get_learner('models/tiny384_2heads_160k_03off_10')
     # learn = get_learner('models/tiny384_2heads_aug_6')
-    learn = get_learner('models/tiny384_2heads_newdiv_4')
+    # learn = get_learner('models/tiny384_2heads_newdiv_4')
     # learn = get_learner('models/small_2head_8')
+    learn = get_learner('models/tiny384_2heads_aug_4')
     
     t1 = Thread(target=driving_loop, args=(q_pred, wincap, make_preds))
     t2 = Thread(target=predict, args=(learn, q_pred, make_preds))
@@ -248,42 +248,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-def driving_loop_simple(q_pred, wincap):
-    desired_diff = 0
-    accelerate = 1
-    while True:
-        # read current angle
-        try:
-            screen = wincap.get_screenshot()
-        except:
-            print('compatible dlc etc')
-            continue
-        
-        
-        # get diff if there is any
-        if not q_pred.empty():
-            pred = q_pred.get()
-            if pred is None:
-                no_key()
-                break
-            accelerate, desired_diff, _ = pred
-            # desired_angle = (angle + desired_diff) % 30
-
-        # kb inputs
-        if desired_diff == 0:
-            go_straight()
-        elif desired_diff > 0:
-            turn_left()
-        elif desired_diff < 0:
-            turn_right()
-
-        if accelerate > 0:
-            speed_up()
-        else:
-            slow_down()
-
-        if kb.is_pressed('/'):
-            no_key()
-            break

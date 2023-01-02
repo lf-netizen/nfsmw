@@ -236,6 +236,18 @@ def read_speed(screen):
 
     return 100*get_digit(dig1) + 10*get_digit(dig2) + 1*get_digit(dig3)
 
+def minimap_rotate(img, angle):
+    # for 270 x 480 img input
+    MIN_Y, MIN_X = (214, 49); MIN_R = 37
+    minimap = img[MIN_Y-MIN_R:MIN_Y+MIN_R, MIN_X-MIN_R:MIN_X+MIN_R]
+
+    minimap_rotated = ndimage.rotate(minimap, -angle - 90, reshape=False)
+    mask = np.zeros(shape=(2*MIN_R, 2*MIN_R),dtype=np.uint8)
+    mask = cv2.circle(mask,(MIN_R, MIN_R), MIN_R, 255,-1)
+    minimap = cv2.copyTo(minimap_rotated, mask) + cv2.copyTo(minimap, cv2.bitwise_not(mask))
+
+    img[MIN_Y-MIN_R:MIN_Y+MIN_R, MIN_X-MIN_R:MIN_X+MIN_R] = minimap
+    return img
 
 def old_way_of_loading_models(): 
     # based on preexissting architectures
