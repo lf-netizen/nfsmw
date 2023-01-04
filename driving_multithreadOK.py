@@ -2,9 +2,10 @@ from threading import Thread, Event
 from queue import Queue
 
 from fastai.vision.all import *
+import torch.nn.functional as F
 import time
 
-from utils import read_angle, angle_diff_norm, preprocess_img, IMG_SIZE_X, IMG_SIZE_Y, read_speed, get_learner, save_screen
+from utils import read_angle, angle_diff_norm, preprocess_img, IMG_SIZE_X, IMG_SIZE_Y, read_speed, get_learner, save_screen, minimap_rotate
 from window_capture import WindowCapture
 
 import cv2
@@ -55,6 +56,7 @@ def driving_loop(q_pred, wincap, make_preds):
     I = deque(maxlen=qlen)
     for _ in range(4): I.append(0)
     steering = 0
+    break_flag = True
 
     while True:
         if kb.is_pressed('/'):
@@ -101,9 +103,10 @@ def driving_loop(q_pred, wincap, make_preds):
             accelerate, pred_diff, _, pred_ad = pred
             desired_diff = 0.5 * pred_diff
             
-            if np.sign(temp_dd) * np.sign(desired_diff) > 0:
-                desired_diff += temp_dd
-            temp_dd = 0
+            # if np.sign(
+            # temp_dd) * np.sign(desired_diff) > 0:
+            #     desired_diff += temp_dd
+            # temp_dd = 0
             print(f'Driving loop counter: {driving_loop_ctr}')
             driving_loop_ctr = 0
             # desired_angle = (angle + desired_diff) % 30
@@ -143,7 +146,7 @@ def driving_loop(q_pred, wincap, make_preds):
             turn_left()
         elif steering < 0:
             turn_right()
-# 
+            
         if accelerate > 0:
             # if speed > 150:
             #     neutral()
@@ -154,7 +157,11 @@ def driving_loop(q_pred, wincap, make_preds):
             # if steering != 0:
                 # neutral()
             # else:
-                slow_down()
+                if break_flag:
+                    slow_down()
+                else:
+                    neutral()
+                break_flag = not break_flag                   
 
         driving_loop_ctr += 1
         time.sleep(0.01)
@@ -164,6 +171,7 @@ def predict(learn, q_pred, make_preds):
     for i in range(2, 0, -1):
         print(i)
 
+    angle = 0
     while True:
         make_preds.wait()
         t_start = time.perf_counter()
@@ -171,10 +179,18 @@ def predict(learn, q_pred, make_preds):
             break
 
         img = preprocess_img(screenshot)
+        screenshot_gray = cv2.cvtColor(screenshot, cv2.COLOR_RGB2GRAY)
+        speed = read_speed(screenshot_gray)
+        
+        # for static minimap
+        # angle_temp = read_angle(screenshot_gray)
+        # if angle_temp is not None:
+        #     angle = angle_temp
+        # img = minimap_rotate(img, angle)
+        
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = np.moveaxis(img, -1, 0)
-        speed = read_speed(cv2.cvtColor(screenshot, cv2.COLOR_RGB2GRAY))
-
+        
         pred = learn.predict((img, torch.tensor(speed/100)))[0]
 
         accelerate = pred[0]+ 0.8
@@ -199,7 +215,7 @@ def predict(learn, q_pred, make_preds):
         #     angle_diff = 0
         q_pred.put((accelerate, angle_diff, pred_ws, pred_ad))
         t_stop = time.perf_counter()
-        print(f"Time: {(t_stop - t_start)*1000:.4f}\n\nAcc: {accelerate:.5f} \nDiff: {raw_diff:.5f} \nKb: {'{:.3f} | {:.3f} | {:.3f}'.format(*pred[7:][::-1])}\n=============================")
+        print(f"Time: {(t_stop - t_start)*1000:.4f}\n\nAcc: {accelerate:.5f} \nDiff: {raw_diff:.5f} \nKb: {'{:.3f} | {:.3f} | {:.3f}'.format(*F.softmax(torch.tensor(pred[7:][::-1])))}\n=============================")
 
 
 def test_predict(learn, q_pred, wincap):
@@ -237,7 +253,9 @@ def main():
     # learn = get_learner('models/tiny384_2heads_aug_6')
     # learn = get_learner('models/tiny384_2heads_newdiv_4')
     # learn = get_learner('models/small_2head_8')
-    learn = get_learner('models/tiny384_2heads_aug_4')
+    learn = get_learner('models/tiny384_2heads_newdiv_aug_4')
+    # learn = get_learner('models/tiny384_augtfms_staticmap_20')
+    # learn = get_learner('models/tiny384_2heads_aug_staticmap_16')
     
     t1 = Thread(target=driving_loop, args=(q_pred, wincap, make_preds))
     t2 = Thread(target=predict, args=(learn, q_pred, make_preds))
