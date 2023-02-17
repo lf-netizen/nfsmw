@@ -5,7 +5,7 @@ from fastai.vision.all import *
 import torch.nn.functional as F
 import time
 
-from utils import read_angle, angle_diff_norm, preprocess_img, IMG_SIZE_X, IMG_SIZE_Y, read_speed, get_learner, save_screen, minimap_rotate
+from utils import read_angle, angle_diff_norm, preprocess_img, IMG_SIZE_X, IMG_SIZE_Y, read_speed, get_learner, save_screen, minimap_rotate, CAPTURE_MINIMAP, CAPTURE_SPEED, turn_left, turn_right, go_straight, speed_up, slow_down, neutral, no_key
 from window_capture import WindowCapture
 
 import cv2
@@ -15,32 +15,6 @@ from collections import deque
 import pathlib
 temp = pathlib.PosixPath
 pathlib.PosixPath = pathlib.WindowsPath
-
-def turn_left():
-    kb.press('a')
-    kb.release('d')
-def turn_right():
-    kb.release('a')
-    kb.press('d')
-def go_straight():
-    kb.release('a')
-    kb.release('d')
-
-def speed_up():
-    kb.press('w')
-    kb.release('s')
-def slow_down():
-    kb.release('w')
-    kb.press('s')
-def neutral():
-    kb.release('w')
-    kb.release('s')
-
-def no_key():
-    kb.release('w')
-    kb.release('s')
-    kb.release('a')
-    kb.release('d')
 
 SAVE_DIR = 'H:/machine learning/NFSMW_v1/images/720_RGB_kb_appendix/39'
 
@@ -53,6 +27,7 @@ def driving_loop(q_pred, wincap, make_preds):
     driving_loop_ctr = 0
     temp_dd = 0
     qlen = 4
+    pred_ad = 0
     I = deque(maxlen=qlen)
     for _ in range(4): I.append(0)
     steering = 0
@@ -71,13 +46,18 @@ def driving_loop(q_pred, wincap, make_preds):
         except:
             print('compatible dlc etc')
             continue
-        screen_gray = cv2.cvtColor(screen, cv2.COLOR_RGB2GRAY)
-        angle = read_angle(screen_gray)
-        speed = read_speed(screen_gray)
-        if speed is None:
+
+        speed_counter = cv2.cvtColor(screen[598:625, 1119:1187], cv2.COLOR_RGB2GRAY)
+        try:
+            speed = read_speed(speed_counter)
+        except:
+
             no_key()
             break
         
+        minimap = screenshot[553:585, 112:144]
+        angle = read_angle(minimap, prev_val=old_angle)
+
         capture_image = np.any([kb.is_pressed(key) for key in ['up', 'down', 'left', 'right']])
         if capture_image:
             make_preds.clear()
@@ -101,7 +81,8 @@ def driving_loop(q_pred, wincap, make_preds):
                 no_key()
                 break
             accelerate, pred_diff, _, pred_ad = pred
-            desired_diff = 0.5 * pred_diff
+            desired_diff = pred_diff
+            # accelerate = pred_speed - speed
             
             # if np.sign(
             # temp_dd) * np.sign(desired_diff) > 0:
@@ -121,24 +102,24 @@ def driving_loop(q_pred, wincap, make_preds):
         #     print('change direction +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+')
 
         
-        if np.sign(desired_diff) * np.sign(angle_diff) > 0:
-            desired_diff -= angle_diff
-        steering = 1.0 * desired_diff \
+        # desired_diff -= angle_diff
+        # steering = 1.0 * desired_diff \
                 # + 0.0 * sum(I) / qlen \
                 # + 0.0 * (angle_diff - I[-1])
         # I.append(angle_diff)
 
         # check if desired diff is reached
-        # if np.sign(desired_diff) * np.sign(angle_diff) > 0:
-        #     desired_diff -= angle_diff
-            # if np.sign(desired_diff) * np.sign(angle_diff) < 0:
-            #     print(f'\nreached after {driving_loop_ctr} ++++++++++++++++++++++++++++++')
-            #     print(f'overshot: {desired_diff - angle_diff}')
-                # desired_diff = 0 
+        if np.sign(desired_diff) * np.sign(angle_diff) > 0:
+            desired_diff -= angle_diff
+            if np.sign(desired_diff) * np.sign(angle_diff) < 0:
+                # print(f'\nreached after {driving_loop_ctr} ++++++++++++++++++++++++++++++')
+                print(f'overshot: {desired_diff - angle_diff}')
+                desired_diff = 0 
             # if np.sign(desired_diff) * pred_ad < 0:
             #     print('\nchange')
             #     desired_diff = 0
         steering = desired_diff
+        
         # kb inputs
         if steering == 0:
             go_straight()
@@ -148,28 +129,31 @@ def driving_loop(q_pred, wincap, make_preds):
             turn_right()
             
         if accelerate > 0:
-            # if speed > 150:
-            #     neutral()
-            # else:
+            if speed > 150:
+                neutral()
+            else:
                 speed_up()
         else:
             # if speed < 50:
             # if steering != 0:
                 # neutral()
             # else:
-                if break_flag:
+                # if break_flag % 4:
+                #     neutral()
+                #     break_flag = 0
+                # else:
                     slow_down()
-                else:
-                    neutral()
-                break_flag = not break_flag                   
+                # break_flag += 1
 
+        print(desired_diff)
         driving_loop_ctr += 1
-        time.sleep(0.01)
+        time.sleep(0.005)
 
 THRESHOLD = 1.0
 def predict(learn, q_pred, make_preds):
     for i in range(2, 0, -1):
         print(i)
+        time.sleep(1)
 
     angle = 0
     while True:
@@ -179,22 +163,23 @@ def predict(learn, q_pred, make_preds):
             break
 
         img = preprocess_img(screenshot)
-        screenshot_gray = cv2.cvtColor(screenshot, cv2.COLOR_RGB2GRAY)
-        speed = read_speed(screenshot_gray)
+        speed_counter = cv2.cvtColor(screenshot[598:625, 1119:1187], cv2.COLOR_RGB2GRAY)
+        speed = read_speed(speed_counter)
         
         # for static minimap
-        # angle_temp = read_angle(screenshot_gray)
-        # if angle_temp is not None:
-        #     angle = angle_temp
-        # img = minimap_rotate(img, angle)
+        minimap = screenshot[553:585, 112:144]
+        angle_temp = read_angle(minimap, prev_val=angle)
+        if angle_temp is not None:
+            angle = angle_temp
+        img = minimap_rotate(img, angle)
         
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = np.moveaxis(img, -1, 0)
         
         pred = learn.predict((img, torch.tensor(speed/100)))[0]
 
-        accelerate = pred[0]+ 0.8
-        raw_diff = pred[1] * 10
+        accelerate = pred[0] * 100 - speed
+        raw_diff = np.round(pred[1] * 100)
         pred_ws = np.argmax(pred[3:6] ) - 1
         pred_ad = np.argmax(pred[7:]) - 1
         
@@ -208,14 +193,14 @@ def predict(learn, q_pred, make_preds):
         angle_diff = raw_diff
         # angle_diff = min(np.abs(raw_diff), 5) * np.sign(raw_diff)
         # angle_diff = np.abs(raw_diff) * pred_ad
-        if pred[7] < 0 and pred[9] < 0 and pred[8] > 1:
-            angle_diff = 0
-            print('force straight ==============================')
+        # if pred[7] < 0 and pred[9] < 0 and pred[8] > 1:
+        #     angle_diff = 0
+        #     print('force straight ==============================')
         # if accelerate < 0:
         #     angle_diff = 0
         q_pred.put((accelerate, angle_diff, pred_ws, pred_ad))
         t_stop = time.perf_counter()
-        print(f"Time: {(t_stop - t_start)*1000:.4f}\n\nAcc: {accelerate:.5f} \nDiff: {raw_diff:.5f} \nKb: {'{:.3f} | {:.3f} | {:.3f}'.format(*F.softmax(torch.tensor(pred[7:][::-1])))}\n=============================")
+        print(f"Time: {(t_stop - t_start)*1000:.4f}\n\nAcc: {accelerate:.5f} \nDiff: {raw_diff:.5f} \nKb: {'{:.3f} | {:.3f} | {:.3f}'.format(*F.softmax(torch.tensor(pred[7:][::-1]), dim=0))}\n=============================")
 
 
 def test_predict(learn, q_pred, wincap):
@@ -253,9 +238,11 @@ def main():
     # learn = get_learner('models/tiny384_2heads_aug_6')
     # learn = get_learner('models/tiny384_2heads_newdiv_4')
     # learn = get_learner('models/small_2head_8')
-    learn = get_learner('models/tiny384_2heads_newdiv_aug_4')
+    # learn = get_learner('models/tiny384_2heads_newdiv_aug_4')
     # learn = get_learner('models/tiny384_augtfms_staticmap_20')
     # learn = get_learner('models/tiny384_2heads_aug_staticmap_16')
+    # learn = get_learner('models/tiny384_100k_03off_augtfms_staticmap_v3angle')
+    learn = get_learner('models/tiny384_100k_03off_augtfms_staticmap_v3angle_finalspeed')
     
     t1 = Thread(target=driving_loop, args=(q_pred, wincap, make_preds))
     t2 = Thread(target=predict, args=(learn, q_pred, make_preds))

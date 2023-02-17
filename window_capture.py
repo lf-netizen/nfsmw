@@ -47,22 +47,29 @@ class WindowCapture:
         self.offset_x = window_rect[0] + self.cropped_x
         self.offset_y = window_rect[1] + self.cropped_y
 
-    def get_screenshot(self):
+    def get_screenshot(self, coords=None):
+        if coords is None:
+            w, h, cropped_x, cropped_y = self.w, self.h, self.cropped_x, self.cropped_y
+        else:
+            w, h, cropped_x, cropped_y = coords
+            cropped_x += self.cropped_x
+            cropped_y += self.cropped_y
+
 
         # get the window image data
         wDC = win32gui.GetWindowDC(self.hwnd)
         dcObj = win32ui.CreateDCFromHandle(wDC)
         cDC = dcObj.CreateCompatibleDC()
         dataBitMap = win32ui.CreateBitmap()
-        dataBitMap.CreateCompatibleBitmap(dcObj, self.w, self.h)
+        dataBitMap.CreateCompatibleBitmap(dcObj, w, h)
         cDC.SelectObject(dataBitMap)
-        cDC.BitBlt((0, 0), (self.w, self.h), dcObj, (self.cropped_x, self.cropped_y), win32con.SRCCOPY)
+        cDC.BitBlt((0, 0), (w, h), dcObj, (cropped_x, cropped_y), win32con.SRCCOPY)
 
         # convert the raw data into a format opencv can read
         #dataBitMap.SaveBitmapFile(cDC, 'debug.bmp')
         signedIntsArray = dataBitMap.GetBitmapBits(True)
         img = np.frombuffer(signedIntsArray, dtype='uint8')
-        img.shape = (self.h, self.w, 4)
+        img.shape = (h, w, 4)
 
         # free resources
         dcObj.DeleteDC()
@@ -113,7 +120,8 @@ if __name__ == '__main__':
     sum_time = 0
     for i in range(1000):
         t_start = time.perf_counter()
-        # screen = wincap.get_screenshot()
+        screen = wincap.get_screenshot()
+        # screen = wincap.get_screenshot((32, 32, 112, 553))
         # screen = grab_screen(region=(1, 31, 960, 540))
         t_stop = time.perf_counter()
         diff = t_stop - t_start

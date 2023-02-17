@@ -6,6 +6,12 @@ from fastai.vision.all import *
 import datetime
 from window_capture import WindowCapture
 import keyboard as kb
+from typing import NamedTuple
+
+# for 720p
+CAPTURE_MINIMAP = (32, 32, 112, 553)
+CAPTURE_SPEED = (68, 27, 1119, 598)
+
 
 
 IMG_SIZE_X = int(960 / 2)
@@ -22,7 +28,7 @@ def preprocess_img(img):
 # HD VERSION
 MIN_Y, MIN_X = (528, 127); MIN_R = 15
 
-def read_angle__old(img):
+def read_angle__v1(img):
     # if len(img.shape) > 2:
     #     img2 = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     minimap = img[MIN_Y-MIN_R:MIN_Y+MIN_R, MIN_X-MIN_R:MIN_X+MIN_R]
@@ -43,7 +49,32 @@ def read_angle__old(img):
     except:
         return 0
 
+def turn_left():
+    kb.press('a')
+    kb.release('d')
+def turn_right():
+    kb.release('a')
+    kb.press('d')
+def go_straight():
+    kb.release('a')
+    kb.release('d')
 
+def speed_up():
+    kb.press('w')
+    kb.release('s')
+def slow_down():
+    kb.release('w')
+    kb.press('s')
+def neutral():
+    kb.release('w')
+    kb.release('s')
+
+def no_key():
+    kb.release('w')
+    kb.release('s')
+    kb.release('a')
+    kb.release('d')
+    
 # FHD VERSION
 # MIN_Y, MIN_X = (853, 191); MIN_R = 20
 # HD VERSION
@@ -54,7 +85,7 @@ def read_angle__old(img):
 # MIN_Y, MIN_X = (569, 128); MIN_R = 16
 Line = namedtuple('Line', 'x1 y1 x2 y2 angle')
 
-def read_angle(screen):
+def read_angle__v2(screen):
     if screen.shape[0] == 720:
         MIN_Y, MIN_X = (569, 128); MIN_R = 16
     elif screen.shape[0] == 668:
@@ -134,7 +165,77 @@ def read_angle(screen):
 
     return result_angle
 
-def angle_diff_norm(this_angle, prev_angle):
+
+def turn_left():
+    kb.press('a')
+    kb.release('d')
+def turn_right():
+    kb.release('a')
+    kb.press('d')
+def go_straight():
+    kb.release('a')
+    kb.release('d')
+
+def speed_up():
+    kb.press('w')
+    kb.release('s')
+def slow_down():
+    kb.release('w')
+    kb.press('s')
+def neutral():
+    kb.release('w')
+    kb.release('s')
+
+def no_key():
+    kb.release('w')
+    kb.release('s')
+    kb.release('a')
+    kb.release('d')
+
+MIN_Y, MIN_X = (569, 128); MIN_R = 16
+DIR_NAME = 'minimap_LUT_v2'
+RANGE = len(os.listdir(f'images/tests/{DIR_NAME}'))
+
+data  = []
+for img_name in sorted(os.listdir(f'images/tests/{DIR_NAME}'), key=lambda name: int(name[:-4])):
+    img = cv2.imread(f'images/tests/{DIR_NAME}/{img_name}', cv2.IMREAD_GRAYSCALE)
+    data.append(img)
+
+def normalize_it(it):
+    if it < 0:
+        return it + RANGE
+    if it >= RANGE:
+        return it - RANGE
+    return it
+
+def read_angle(minimap, prev_val=0):
+    # minimap = screen[MIN_Y-MIN_R:MIN_Y+MIN_R, MIN_X-MIN_R:MIN_X+MIN_R]
+    minimap_hsv = cv2.cvtColor(minimap, cv2.COLOR_RGB2HSV)
+    minimap = cv2.bitwise_and(minimap, minimap, mask=(minimap_hsv[:, :, 1] > 130).astype(np.uint8))
+    minimap = cv2.bitwise_and(minimap, minimap, mask=(minimap[:, :, 2] > 100).astype(np.uint8))
+    # minimap = (minimap > 0).astype(np.uint8)
+    minimap = cv2.cvtColor(minimap, cv2.COLOR_BGR2GRAY)
+    _, minimap = cv2.threshold(minimap, 0, 255, cv2.THRESH_BINARY)
+
+    found = True
+    for offset in range(RANGE//2):
+        it_forward = normalize_it(prev_val + offset)
+        it_backward = normalize_it(prev_val - offset)
+        
+        if np.array_equal(minimap, data[it_forward]):
+            data_it = it_forward
+            break
+        if np.array_equal(minimap, data[it_backward]):
+            data_it = it_backward
+            break
+    else:
+        found = False
+
+    if not found:
+        return None
+    return data_it
+
+def angle_diff_norm__v2(this_angle, prev_angle):
     if np.abs(this_angle - prev_angle) > 180:
         if this_angle < 0:
             this_angle += 360
@@ -145,6 +246,15 @@ def angle_diff_norm(this_angle, prev_angle):
         return 0
     return diff
 
+def angle_diff_norm(this_angle, prev_angle):
+    diff = this_angle - prev_angle
+    if diff < -RANGE//2:
+        diff += RANGE
+    elif diff > RANGE//2:
+        diff -= RANGE
+    if abs(diff) > 80:
+        return 0
+    return diff
 
 # from IPython.display import clear_output
 # while True:
@@ -212,7 +322,7 @@ def get_digit(screen): # 25x17
     elif np.all(display == np.array([True,  True,  True,  True,  False, True,  True ])):
         return 9
     else:
-        return 1000
+        raise ValueError('Error in speed counter')
 
 # FOR 1277..
 # def read_speed(screen):
@@ -226,13 +336,13 @@ def get_digit(screen): # 25x17
 #     return 100*get_digit(dig1) + 10*get_digit(dig2) + 1*get_digit(dig3)
 
 # FOR 1280x720
-def read_speed(screen):
-    screen = screen[598:625, 1119:1187]
-    screen = screen < 40
+def read_speed(counter):
+    # screen = screen[598:625, 1119:1187]
+    counter = counter < 40
 
-    dig1 = screen[:, :18]
-    dig2 = screen[:, 26:26+18]
-    dig3 = screen[:, 50:50+18]
+    dig1 = counter[:, :18]
+    dig2 = counter[:, 26:26+18]
+    dig3 = counter[:, 50:50+18]
 
     return 100*get_digit(dig1) + 10*get_digit(dig2) + 1*get_digit(dig3)
 
@@ -241,7 +351,7 @@ def minimap_rotate(img, angle):
     MIN_Y, MIN_X = (214, 49); MIN_R = 37
     minimap = img[MIN_Y-MIN_R:MIN_Y+MIN_R, MIN_X-MIN_R:MIN_X+MIN_R]
 
-    minimap_rotated = ndimage.rotate(minimap, -angle - 90, reshape=False)
+    minimap_rotated = ndimage.rotate(minimap, angle, reshape=False)
     mask = np.zeros(shape=(2*MIN_R, 2*MIN_R),dtype=np.uint8)
     mask = cv2.circle(mask,(MIN_R, MIN_R), MIN_R, 255,-1)
     minimap = cv2.copyTo(minimap_rotated, mask) + cv2.copyTo(minimap, cv2.bitwise_not(mask))
@@ -513,7 +623,7 @@ def get_learner_(model_name):
     learn.load(model_name)
     return learn
 
-def angle_diff_norm__old(angle_diff):
+def angle_diff_norm__v1(angle_diff):
     if angle_diff > 14:
         angle_diff -= 29
     elif angle_diff < -14:
