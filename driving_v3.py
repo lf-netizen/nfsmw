@@ -16,6 +16,9 @@ import pathlib
 temp = pathlib.PosixPath
 pathlib.PosixPath = pathlib.WindowsPath
 
+import warnings
+# Suppress all warnings
+warnings.filterwarnings("ignore")
 
 def driving_loop(wincap, preds, pause_event):
     accelerate = 1
@@ -47,11 +50,11 @@ def driving_loop(wincap, preds, pause_event):
         try:
             minimap = wincap.get_screenshot(CAPTURE_MINIMAP)
         except:
-            print('compatible dlc etc')
+            # print('compatible dlc etc')
             continue
         angle = read_angle(minimap, prev_val=prev_angle)
         if angle is None:
-            print('angle none  o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o')
+            # print('angle none  o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o')
             continue
 
         angle_diff = angle_diff_norm(angle, prev_angle)
@@ -77,18 +80,18 @@ def driving_loop(wincap, preds, pause_event):
 
             # print('AAAAAAAAAAAAA' if pred_ad > 0 else '------------' if pred_ad == 0 else 'DDDDDDDDDDDDDDDDDDDDD')
 
-            print(f'Driving loop counter: {driving_loop_ctr}')
+            # print(f'Driving loop counter: {driving_loop_ctr}')
             driving_loop_ctr = 0
             
         if np.sign(desired_diff) * np.sign(angle_diff) > 0:
             desired_diff -= angle_diff
             if np.sign(desired_diff) * np.sign(angle_diff) < 0:
-                print('overshoot:', desired_diff)
+                # print('overshoot:', desired_diff)
                 desired_diff = 0
 
         # desired_diff -= angle_diff
-        print(desired_diff)
-        if np.abs(desired_diff) < 5:
+        # print(desired_diff)
+        if np.abs(desired_diff) < 4:
             desired_diff = 0
         
         steering = desired_diff
@@ -175,7 +178,8 @@ def predictions(model_path, wincap, preds, pause_event):
         preds.put((accelerate, raw_diff, pred_ws, pred_ad))
         
         t_stop = time.perf_counter()
-        print(f"Time: {(t_stop - t_start)*1000:.4f}\n\nAcc: {accelerate:.5f} \nDiff: {raw_diff:.5f} \nKb: {'{:.3f} | {:.3f} | {:.3f}'.format(*F.softmax(torch.tensor(pred[7:][::-1]), dim=0))}\n=============================")
+        # print(f"Time: {(t_stop - t_start)*1000:.4f}\n\nAcc: {accelerate:.5f} \nDiff: {raw_diff:.5f} \nKb: {'{:.3f} | {:.3f} | {:.3f}'.format(*F.softmax(torch.tensor(pred[7:][::-1]), dim=0))}\n=============================")
+        print(f"{(t_stop - t_start)*1000:16.2f}ms\nAcc: {accelerate:23.3f}\nStr: {raw_diff/1098*180:23.3f}\nKb WS: {'{:.3f} | {:.3f} | {:.3f}'.format(*F.softmax(torch.tensor(pred[3:6][::-1]), dim=0))}\nKb AD: {'{:.3f} | {:.3f} | {:.3f}'.format(*F.softmax(torch.tensor(pred[7:][::-1]), dim=0))}\n============================")
 
 def test_predictions(q, w, preds, *args):
     for i in range(2, 0, -1):
