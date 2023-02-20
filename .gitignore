@@ -1,8 +1,2 @@
-*
-
-!.gitignore
-!*.py
-!*.ipynb
-!README.md
-!img
-!img/**
+**/__pycache__
+/models
