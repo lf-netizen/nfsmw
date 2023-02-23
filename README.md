@@ -6,9 +6,23 @@
 
 A project in which ideas, improvements and fixes will never come to an end. The goal was to train a neural network to play the game Need for Speed Most Wanted. Below you can see it in action.
 
+<p align="center">
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=rDit_1Xzy1Y
+" target="_blank"><img src="http://img.youtube.com/vi/rDit_1Xzy1Y/0.jpg" 
+alt="Montage" width="70%" border="10" /></a>
+</p>
+
+<p align="center">
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=DmdjvHihsis
 " target="_blank"><img src="http://img.youtube.com/vi/DmdjvHihsis/0.jpg" 
-alt="Uncut showcase" width="30%" border="10" /></a>
+alt="Uncut showcase 1" width="23%" border="10" /></a>
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=bNa-p28bB98
+" target="_blank"><img src="http://img.youtube.com/vi/bNa-p28bB98/0.jpg" 
+alt="Uncut showcase 2" width="23%" border="10" /></a>
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=FQ1imQXxUmE
+" target="_blank"><img src="http://img.youtube.com/vi/FQ1imQXxUmE/0.jpg" 
+alt="Uncut showcase 3" width="23%" border="10" /></a>
+</p>
 
 ## Key points
 * A model was trained using the fast.ai library, which is built on top of PyTorch.
